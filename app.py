@@ -23,30 +23,22 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
-/* 背景 */
 .stApp {
     background: linear-gradient(135deg, #0a0a1a 0%, #0d1b2a 50%, #0a0a1a 100%);
     color: #e0e0e0;
 }
 
-/* 隱藏預設元素 */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
 
-/* 主標題 Glitch 效果 */
 .glitch-title {
     font-family: 'Orbitron', monospace;
     font-size: 2.8em;
     font-weight: 900;
     text-align: center;
     color: #00d4ff;
-    text-shadow:
-        0 0 10px #00d4ff,
-        0 0 20px #00d4ff,
-        0 0 40px #00d4ff,
-        2px 2px 0px #ff006e,
-        -2px -2px 0px #00ff88;
+    text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 0 0 40px #00d4ff, 2px 2px 0px #ff006e, -2px -2px 0px #00ff88;
     letter-spacing: 4px;
     padding: 20px 0;
     animation: glitch 3s infinite;
@@ -59,7 +51,6 @@ header {visibility: hidden;}
     96% { text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff; transform: translate(0); }
 }
 
-/* 副標題 */
 .subtitle {
     font-family: 'Share Tech Mono', monospace;
     text-align: center;
@@ -69,7 +60,6 @@ header {visibility: hidden;}
     margin-bottom: 30px;
 }
 
-/* 統計卡片 */
 .stat-card {
     background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,255,136,0.05));
     border: 1px solid rgba(0,212,255,0.3);
@@ -95,7 +85,6 @@ header {visibility: hidden;}
     margin-top: 5px;
 }
 
-/* 排行榜標題 */
 .section-title {
     font-family: 'Orbitron', monospace;
     font-size: 1.2em;
@@ -107,7 +96,6 @@ header {visibility: hidden;}
     letter-spacing: 2px;
 }
 
-/* 前五名發光卡片 */
 .top-card {
     background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,140,0,0.05));
     border: 1px solid rgba(255,215,0,0.4);
@@ -125,7 +113,6 @@ header {visibility: hidden;}
     transform: translateX(5px);
 }
 
-/* 六到十名精簡卡片 */
 .normal-card {
     background: rgba(0,212,255,0.04);
     border: 1px solid rgba(0,212,255,0.2);
@@ -141,7 +128,6 @@ header {visibility: hidden;}
     transform: translateX(3px);
 }
 
-/* 排名數字 */
 .rank-number-top {
     font-family: 'Orbitron', monospace;
     font-size: 1.8em;
@@ -161,7 +147,6 @@ header {visibility: hidden;}
     display: inline-block;
 }
 
-/* 新聞標題 */
 .news-title-top {
     font-size: 1.05em;
     color: #ffffff;
@@ -175,7 +160,6 @@ header {visibility: hidden;}
     line-height: 1.4;
 }
 
-/* 標籤 */
 .news-tag {
     display: inline-block;
     background: rgba(0,212,255,0.15);
@@ -195,7 +179,6 @@ header {visibility: hidden;}
     color: #ffd700;
 }
 
-/* 熱度條 */
 .heat-bar-container {
     background: rgba(255,255,255,0.05);
     border-radius: 3px;
@@ -211,7 +194,6 @@ header {visibility: hidden;}
     box-shadow: 0 0 8px #00d4ff;
 }
 
-/* AI 分析區塊 */
 .ai-analysis {
     background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(0,212,255,0.05));
     border: 1px solid rgba(138,43,226,0.4);
@@ -233,20 +215,6 @@ header {visibility: hidden;}
     letter-spacing: 2px;
 }
 
-/* 雜訊過濾標籤 */
-.filter-badge {
-    display: inline-block;
-    background: rgba(255,0,110,0.1);
-    border: 1px solid rgba(255,0,110,0.3);
-    color: #ff006e;
-    font-size: 0.7em;
-    padding: 3px 10px;
-    border-radius: 3px;
-    margin: 3px;
-    font-family: 'Share Tech Mono', monospace;
-}
-
-/* 分隔線 */
 .cyber-divider {
     border: none;
     height: 1px;
@@ -254,7 +222,6 @@ header {visibility: hidden;}
     margin: 20px 0;
 }
 
-/* 更新時間 */
 .update-time {
     font-family: 'Share Tech Mono', monospace;
     color: #444;
@@ -266,36 +233,34 @@ header {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 讀取 Google Sheets 資料
+# 設定過濾清單
 # ============================================================
 BLOCKED_DOMAINS = [
     'find.org.tw', '104.com.tw', 'yes123.com.tw',
     'jobsdb.com', 'cake.me', 'linkedin.com'
 ]
 
+# ============================================================
+# 讀取 Google Sheets 資料
+# ============================================================
 @st.cache_data(ttl=3600)
 def load_data():
     try:
-        # 讀取憑證
         scope = [
             'https://spreadsheets.google.com/feeds',
             'https://www.googleapis.com/auth/drive'
         ]
 
-        # 支援本機和雲端兩種方式
         if os.path.exists('credentials.json'):
-    creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
-else:
-    creds_json = st.secrets["GOOGLE_CREDENTIALS"]
-    creds_dict = json.loads(creds_json)
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+            creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+            SHEET_ID = '15AXNliucYP5-NTwleA4cSyoNhY-Fxyy1UBSCpxwCwlY'
+        else:
+            creds_json = st.secrets["GOOGLE_CREDENTIALS"]
+            creds_dict = json.loads(creds_json)
+            creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+            SHEET_ID = st.secrets["SHEET_ID"]
 
-client = gspread.authorize(creds)
-
-if os.path.exists('credentials.json'):
-    SHEET_ID = '15AXNliucYP5-NTwleA4cSyoNhY-Fxyy1UBSCpxwCwlY'
-else:
-    SHEET_ID = st.secrets["SHEET_ID"]
+        client = gspread.authorize(creds)
         sheet = client.open_by_key(SHEET_ID).worksheet('raw_news')
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
@@ -303,15 +268,12 @@ else:
         if df.empty:
             return pd.DataFrame()
 
-        # 過濾過去 30 天
         df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
         thirty_days_ago = datetime.now() - timedelta(days=30)
         df = df[df['published_at'] >= thirty_days_ago]
 
-        # 過濾雜訊網域
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
 
-        # 計算熱度（同標題出現次數）
         df['heat'] = df.groupby('title')['title'].transform('count')
         df = df.drop_duplicates(subset=['title'])
         df = df.sort_values('heat', ascending=False).reset_index(drop=True)
@@ -325,13 +287,10 @@ else:
 # ============================================================
 # 主畫面
 # ============================================================
-
-# 標題
 st.markdown('<div class="glitch-title">📡 資策會新聞熱度觀測站</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">// INSTITUTE FOR INFORMATION INDUSTRY · NEWS MONITOR SYSTEM //</div>', unsafe_allow_html=True)
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-# 載入資料
 with st.spinner('🔄 正在從資料庫讀取新聞...'):
     df = load_data()
 
@@ -339,7 +298,6 @@ if df.empty:
     st.warning("⚠️ 目前無資料，請確認 Google Sheets 連線與資料是否正常。")
     st.stop()
 
-# 統計數字
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.markdown(f'''
@@ -373,7 +331,6 @@ with col4:
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-# 前五名
 st.markdown('<div class="section-title">🏆 TOP 5 本月最熱新聞</div>', unsafe_allow_html=True)
 
 top5 = df.head(5)
@@ -412,7 +369,6 @@ for i, row in top5.iterrows():
     </div>
     ''', unsafe_allow_html=True)
 
-# 六到十名
 st.markdown('<div class="section-title">📊 TOP 6-10 追蹤新聞</div>', unsafe_allow_html=True)
 
 next5 = df.iloc[5:10]
@@ -445,7 +401,6 @@ for i, row in next5.iterrows():
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-# AI 分析摘要
 st.markdown('<div class="section-title">🤖 AI 月度輿情分析</div>', unsafe_allow_html=True)
 
 top_keywords = df['keyword'].value_counts().head(3).index.tolist() if 'keyword' in df.columns else []
@@ -478,5 +433,4 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-# 更新時間
 st.markdown(f'<div class="update-time">最後更新：{datetime.now().strftime("%Y-%m-%d %H:%M")} · 資料每小時自動更新</div>', unsafe_allow_html=True)
