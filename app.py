@@ -280,6 +280,10 @@ def group_similar_titles(df, threshold=0.3):
     titles = df['title'].tolist()
     sources = df['source'].tolist()
     urls = df['url'].tolist()
+
+    # media_list 欄位可能已存在（第二次分群時）
+    media_lists = df['media_list'].tolist() if 'media_list' in df.columns else [s for s in sources]
+
     groups = []
     used = set()
 
@@ -306,15 +310,23 @@ def group_similar_titles(df, threshold=0.3):
     result_rows = []
     for group in groups:
         group_titles = [titles[i] for i in group]
-        group_sources = [sources[i] for i in group]
         group_urls = [urls[i] for i in group]
+
+        # 合併所有媒體來源
+        all_sources = []
+        for i in group:
+            media = media_lists[i]
+            if ' · ' in str(media):
+                all_sources.extend(media.split(' · '))
+            else:
+                all_sources.append(str(media))
+
+        unique_sources = list(dict.fromkeys([s for s in all_sources if s and s != 'nan']))
+        heat = len(unique_sources)
 
         rep_idx = max(range(len(group_titles)), key=lambda x: len(group_titles[x]))
         rep_title = group_titles[rep_idx]
         rep_url = group_urls[rep_idx]
-
-        unique_sources = list(dict.fromkeys(group_sources))
-        heat = len(unique_sources)
 
         orig_row = df.iloc[group[rep_idx]].copy()
         orig_row['title'] = rep_title
@@ -355,11 +367,9 @@ def load_data():
             return pd.DataFrame()
 
         df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
-
-        # 過濾雜訊網域
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
 
-        # 標題去重（同標題只保留第一筆，保留來源多樣性）
+        # 標題去重
         df = df.drop_duplicates(subset=['title'], keep='first')
 
         return df
@@ -411,8 +421,9 @@ if df_filtered.empty:
     st.warning(f"⚠️ {period_label} 內無資料，請嘗試選擇更長的區間。")
     st.stop()
 
-# 相似標題分群計算熱度
+# 相似標題分群（跑兩次確保完整合併）
 df = group_similar_titles(df_filtered, threshold=0.3)
+df = group_similar_titles(df, threshold=0.3)
 
 # 統計數字
 col1, col2, col3, col4 = st.columns(4)
