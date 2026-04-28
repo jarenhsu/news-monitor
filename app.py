@@ -248,11 +248,11 @@ BLOCKED_DOMAINS = [
     'jobsdb.com', 'cake.me', 'linkedin.com'
 ]
 
-# 重要關鍵實體清單（人名、機構、事件）
+# 關鍵實體清單（長度>=3，避免過度匹配）
 KEY_ENTITIES = [
     '高虹安', '奇美醫院', '職能護照', 'ITS世界大會',
-    '資策會', '數位轉型', 'FIND', '博論', '抄襲',
-    '半導體', '資安', '新南向', '元宇宙', 'AI'
+    '博論抄襲', '數位轉型', '智慧醫療', '資安院',
+    '半導體', '新南向', '元宇宙', '虛擬實境'
 ]
 
 # ============================================================
@@ -262,12 +262,9 @@ def get_similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 def share_key_entity(a, b):
-    """檢查兩個標題是否包含相同的關鍵實體"""
+    """檢查兩個標題是否包含相同的關鍵實體（長度>=3才算）"""
     for entity in KEY_ENTITIES:
-        if len(entity) >= 2 and entity in a and entity in b:
-            # 排除「資策會」這種太通用的詞（每篇都有）
-            if entity == '資策會' or entity == 'AI':
-                continue
+        if len(entity) >= 3 and entity in a and entity in b:
             return True
     return False
 
@@ -287,17 +284,17 @@ def group_similar_titles(df, threshold=0.3):
             if j in used:
                 continue
 
-            # 方法一：共同中文字 >= 3
+            # 方法一：共同中文字 >= 4
             common_chars = set(title_a) & set(title_b)
             common_words = [c for c in common_chars if '\u4e00' <= c <= '\u9fff']
 
-            # 方法二：標題相似度
+            # 方法二：標題相似度 >= 0.3
             similarity = get_similarity(title_a, title_b)
 
             # 方法三：包含相同關鍵實體
             same_entity = share_key_entity(title_a, title_b)
 
-            if len(common_words) >= 3 or similarity >= threshold or same_entity:
+            if len(common_words) >= 4 or similarity >= threshold or same_entity:
                 group.append(j)
                 used.add(j)
 
