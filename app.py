@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
+from difflib import SequenceMatcher
 import os
 import json
 
@@ -194,6 +195,13 @@ header {visibility: hidden;}
     box-shadow: 0 0 8px #00d4ff;
 }
 
+.media-list {
+    font-family: 'Share Tech Mono', monospace;
+    color: #888;
+    font-size: 0.75em;
+    margin-top: 5px;
+}
+
 .ai-analysis {
     background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(0,212,255,0.05));
     border: 1px solid rgba(138,43,226,0.4);
@@ -241,6 +249,65 @@ BLOCKED_DOMAINS = [
 ]
 
 # ============================================================
+# 相似標題分群函數
+# ============================================================
+def get_similarity(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
+def group_similar_titles(df, threshold=0.3):
+    titles = df['title'].tolist()
+    sources = df['source'].tolist()
+    urls = df['url'].tolist()
+    groups = []
+    used = set()
+
+    for i, title_a in enumerate(titles):
+        if i in used:
+            continue
+        group = [i]
+        used.add(i)
+        for j, title_b in enumerate(titles):
+            if j in used:
+                continue
+            # 共用4個以上中文字 OR 相似度超過門檻
+            common_chars = set(title_a) & set(title_b)
+            common_words = [c for c in common_chars if '\u4e00' <= c <= '\u9fff']
+            if len(common_words) >= 4 or get_similarity(title_a, title_b) >= threshold:
+                group.append(j)
+                used.add(j)
+        groups.append(group)
+
+    # 建立對應關係
+    result_rows = []
+    for group in groups:
+        group_titles = [titles[i] for i in group]
+        group_sources = [sources[i] for i in group]
+        group_urls = [urls[i] for i in group]
+
+        # 選最長標題作為代表
+        rep_idx = max(range(len(group_titles)), key=lambda x: len(group_titles[x]))
+        rep_title = group_titles[rep_idx]
+        rep_url = group_urls[rep_idx]
+
+        # 收集所有媒體來源（去重）
+        unique_sources = list(dict.fromkeys(group_sources))
+
+        # 熱度 = 媒體數量
+        heat = len(unique_sources)
+
+        # 取原始 df 的其他欄位
+        orig_row = df.iloc[group[rep_idx]].copy()
+        orig_row['title'] = rep_title
+        orig_row['url'] = rep_url
+        orig_row['heat'] = heat
+        orig_row['media_list'] = ' · '.join(unique_sources)
+        result_rows.append(orig_row)
+
+    result_df = pd.DataFrame(result_rows)
+    result_df = result_df.sort_values('heat', ascending=False).reset_index(drop=True)
+    return result_df
+
+# ============================================================
 # 讀取 Google Sheets 資料
 # ============================================================
 @st.cache_data(ttl=3600)
@@ -274,9 +341,8 @@ def load_data():
 
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
 
-        df['heat'] = df.groupby('title')['title'].transform('count')
-        df = df.drop_duplicates(subset=['title'])
-        df = df.sort_values('heat', ascending=False).reset_index(drop=True)
+        # 用相似標題分群計算熱度
+        df = group_similar_titles(df, threshold=0.3)
 
         return df
 
@@ -303,18 +369,19 @@ with col1:
     st.markdown(f'''
     <div class="stat-card">
         <div class="stat-number">{len(df)}</div>
-        <div class="stat-label">📰 本月新聞總數</div>
+        <div class="stat-label">📰 本月新聞事件數</div>
     </div>''', unsafe_allow_html=True)
 
 with col2:
+    total_media = df['media_list'].str.split(' · ').explode().nunique() if 'media_list' in df.columns else 0
     st.markdown(f'''
     <div class="stat-card">
-        <div class="stat-number">{df["source"].nunique()}</div>
+        <div class="stat-number">{total_media}</div>
         <div class="stat-label">📡 媒體來源數</div>
     </div>''', unsafe_allow_html=True)
 
 with col3:
-    top_keyword = df["keyword"].value_counts().index[0] if "keyword" in df.columns else "N/A"
+    top_keyword = df["keyword"].value_counts().index[0] if "keyword" in df.columns and len(df) > 0 else "N/A"
     st.markdown(f'''
     <div class="stat-card">
         <div class="stat-number" style="font-size:1.5em">{top_keyword}</div>
@@ -322,15 +389,16 @@ with col3:
     </div>''', unsafe_allow_html=True)
 
 with col4:
-    max_heat = int(df["heat"].max()) if "heat" in df.columns else 0
+    max_heat = int(df["heat"].max()) if "heat" in df.columns and len(df) > 0 else 0
     st.markdown(f'''
     <div class="stat-card">
         <div class="stat-number">{max_heat}</div>
-        <div class="stat-label">⚡ 最高熱度</div>
+        <div class="stat-label">⚡ 最高媒體聲量</div>
     </div>''', unsafe_allow_html=True)
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
+# TOP 5
 st.markdown('<div class="section-title">🏆 TOP 5 本月最熱新聞</div>', unsafe_allow_html=True)
 
 top5 = df.head(5)
@@ -341,9 +409,10 @@ for i, row in top5.iterrows():
     heat_pct = int((row['heat'] / max_heat_val) * 100)
     title = row.get('title', '無標題')
     url = row.get('url', '#')
-    source = row.get('source', 'unknown')
     keyword = row.get('keyword', '')
     pub_date = str(row.get('published_at', ''))[:10]
+    media_list = row.get('media_list', '')
+    heat = int(row.get('heat', 1))
 
     st.markdown(f'''
     <div class="top-card">
@@ -356,11 +425,11 @@ for i, row in top5.iterrows():
                     </a>
                 </div>
                 <div style="margin-top:8px;">
-                    <span class="news-tag">📡 {source}</span>
                     <span class="news-tag news-tag-keyword">🔑 {keyword}</span>
                     <span class="news-tag">📅 {pub_date}</span>
-                    <span class="news-tag" style="color:#00ff88; border-color:#00ff88;">⚡ 熱度 {row["heat"]}</span>
+                    <span class="news-tag" style="color:#00ff88; border-color:#00ff88;">⚡ 聲量 {heat}</span>
                 </div>
+                <div class="media-list">📡 媒體：{media_list}</div>
                 <div class="heat-bar-container">
                     <div class="heat-bar" style="width:{heat_pct}%"></div>
                 </div>
@@ -369,6 +438,7 @@ for i, row in top5.iterrows():
     </div>
     ''', unsafe_allow_html=True)
 
+# TOP 6-10
 st.markdown('<div class="section-title">📊 TOP 6-10 追蹤新聞</div>', unsafe_allow_html=True)
 
 next5 = df.iloc[5:10]
@@ -376,8 +446,9 @@ for i, row in next5.iterrows():
     rank = i + 1
     title = row.get('title', '無標題')
     url = row.get('url', '#')
-    source = row.get('source', 'unknown')
     keyword = row.get('keyword', '')
+    media_list = row.get('media_list', '')
+    heat = int(row.get('heat', 1))
 
     st.markdown(f'''
     <div class="normal-card">
@@ -390,10 +461,10 @@ for i, row in next5.iterrows():
                     </a>
                 </div>
                 <div style="margin-top:5px;">
-                    <span class="news-tag">📡 {source}</span>
                     <span class="news-tag news-tag-keyword">🔑 {keyword}</span>
-                    <span class="news-tag">⚡ {row["heat"]}</span>
+                    <span class="news-tag">⚡ 聲量 {heat}</span>
                 </div>
+                <div class="media-list">📡 {media_list}</div>
             </div>
         </div>
     </div>
@@ -401,22 +472,22 @@ for i, row in next5.iterrows():
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
+# AI 分析
 st.markdown('<div class="section-title">🤖 AI 月度輿情分析</div>', unsafe_allow_html=True)
 
 top_keywords = df['keyword'].value_counts().head(3).index.tolist() if 'keyword' in df.columns else []
-top_sources = df['source'].value_counts().head(3).index.tolist()
 top_news = df['title'].head(3).tolist()
+top_media = df['media_list'].head(1).values[0] if len(df) > 0 else ''
 
 analysis_text = f"""
-▸ 系統分析期間：過去 30 天 · 資料筆數：{len(df)} 則
+▸ 系統分析期間：過去 30 天 · 新聞事件數：{len(df)} 則
 
-▸ 本月最活躍關鍵字：{' · '.join(top_keywords)}
+▸ 本月最活躍關鍵字：{' · '.join(top_keywords) if top_keywords else 'N/A'}
   → 顯示資策會在上述議題持續受到媒體關注
 
-▸ 主要報導媒體：{' · '.join(top_sources)}
-  → 科技與財經媒體為主要報導來源
+▸ 最高聲量事件媒體列表：{top_media}
 
-▸ 本月代表性新聞：
+▸ 本月最熱事件 TOP 3：
   1. {top_news[0] if len(top_news) > 0 else 'N/A'}
   2. {top_news[1] if len(top_news) > 1 else 'N/A'}
   3. {top_news[2] if len(top_news) > 2 else 'N/A'}
