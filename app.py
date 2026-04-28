@@ -254,6 +254,7 @@ KEY_COMBINATIONS = [
     ['奇美', '醫療AI'],
     ['奇美', '職能護照'],
     ['奇美', 'AI人才'],
+    ['奇美', '醫療'],
     ['高虹安', '論文'],
     ['高虹安', '抄襲'],
     ['高虹安', '資策會'],
@@ -329,7 +330,6 @@ def group_similar_titles(df, threshold=0.3):
 # ============================================================
 # 讀取 Google Sheets 資料
 # ============================================================
-@st.cache_data(ttl=3600)
 def load_data():
     try:
         scope = [
@@ -355,7 +355,12 @@ def load_data():
             return pd.DataFrame()
 
         df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
+
+        # 過濾雜訊網域
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
+
+        # 標題去重（同標題只保留第一筆，保留來源多樣性）
+        df = df.drop_duplicates(subset=['title'], keep='first')
 
         return df
 
