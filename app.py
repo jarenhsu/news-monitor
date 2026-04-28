@@ -202,17 +202,6 @@ header {visibility: hidden;}
     margin-top: 5px;
 }
 
-.time-selector {
-    background: rgba(0,212,255,0.05);
-    border: 1px solid rgba(0,212,255,0.2);
-    border-radius: 10px;
-    padding: 15px 20px;
-    margin: 10px 0 20px 0;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
 .ai-analysis {
     background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(0,212,255,0.05));
     border: 1px solid rgba(138,43,226,0.4);
@@ -247,14 +236,6 @@ header {visibility: hidden;}
     font-size: 0.75em;
     text-align: right;
     letter-spacing: 1px;
-}
-
-/* 時間選擇器樣式覆蓋 */
-div[data-testid="stSelectbox"] > div {
-    background: rgba(0,212,255,0.05) !important;
-    border: 1px solid rgba(0,212,255,0.3) !important;
-    border-radius: 6px !important;
-    color: #00d4ff !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -320,7 +301,7 @@ def group_similar_titles(df, threshold=0.3):
     return result_df
 
 # ============================================================
-# 讀取 Google Sheets 資料（不含時間過濾，讓前端控制）
+# 讀取 Google Sheets 資料
 # ============================================================
 @st.cache_data(ttl=3600)
 def load_data():
@@ -366,12 +347,21 @@ st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 # 時間範圍選擇器
 col_sel1, col_sel2, col_sel3 = st.columns([1, 2, 1])
 with col_sel2:
-    days_option = st.selectbox(
+    period_option = st.selectbox(
         '📅 選擇分析區間',
-        options=[7, 14, 30],
-        index=2,
-        format_func=lambda x: f'過去 {x} 天'
+        options=['過去 7 天', '過去 30 天', '今年'],
+        index=0
     )
+
+if period_option == '過去 7 天':
+    cutoff = datetime.now() - timedelta(days=7)
+    period_label = '過去 7 天'
+elif period_option == '過去 30 天':
+    cutoff = datetime.now() - timedelta(days=30)
+    period_label = '過去 30 天'
+else:
+    cutoff = datetime(datetime.now().year, 1, 1)
+    period_label = f'{datetime.now().year} 年全年'
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
@@ -383,12 +373,11 @@ if df_raw.empty:
     st.warning("⚠️ 目前無資料，請確認 Google Sheets 連線與資料是否正常。")
     st.stop()
 
-# 依選擇的天數過濾
-cutoff = datetime.now() - timedelta(days=days_option)
+# 依選擇區間過濾
 df_filtered = df_raw[df_raw['published_at'] >= cutoff].copy()
 
 if df_filtered.empty:
-    st.warning(f"⚠️ 過去 {days_option} 天內無資料，請嘗試選擇更長的區間。")
+    st.warning(f"⚠️ {period_label} 內無資料，請嘗試選擇更長的區間。")
     st.stop()
 
 # 相似標題分群計算熱度
@@ -430,7 +419,7 @@ with col4:
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
 # TOP 5
-st.markdown(f'<div class="section-title">🏆 TOP 5 過去 {days_option} 天最熱新聞</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">🏆 TOP 5 · {period_label} 最熱新聞</div>', unsafe_allow_html=True)
 
 top5 = df.head(5)
 max_heat_val = top5['heat'].max() if len(top5) > 0 else 1
@@ -470,7 +459,7 @@ for i, row in top5.iterrows():
     ''', unsafe_allow_html=True)
 
 # TOP 6-10
-st.markdown(f'<div class="section-title">📊 TOP 6-10 追蹤新聞</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">📊 TOP 6-10 · 追蹤新聞</div>', unsafe_allow_html=True)
 
 next5 = df.iloc[5:10]
 for i, row in next5.iterrows():
@@ -504,14 +493,14 @@ for i, row in next5.iterrows():
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
 # AI 分析
-st.markdown('<div class="section-title">🤖 AI 月度輿情分析</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">🤖 AI 輿情分析</div>', unsafe_allow_html=True)
 
 top_keywords = df['keyword'].value_counts().head(3).index.tolist() if 'keyword' in df.columns else []
 top_news = df['title'].head(3).tolist()
 top_media = df['media_list'].head(1).values[0] if len(df) > 0 else ''
 
 analysis_text = f"""
-▸ 系統分析期間：過去 {days_option} 天 · 新聞事件數：{len(df)} 則
+▸ 系統分析期間：{period_label} · 新聞事件數：{len(df)} 則
 
 ▸ 本期最活躍關鍵字：{' · '.join(top_keywords) if top_keywords else 'N/A'}
   → 顯示資策會在上述議題持續受到媒體關注
@@ -535,4 +524,4 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-st.markdown(f'<div class="update-time">分析區間：過去 {days_option} 天 · 最後更新：{datetime.now().strftime("%Y-%m-%d %H:%M")} · 資料每小時自動更新</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="update-time">分析區間：{period_label} · 最後更新：{datetime.now().strftime("%Y-%m-%d %H:%M")} · 資料每日自動更新</div>', unsafe_allow_html=True)
