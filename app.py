@@ -284,15 +284,18 @@ def load_data():
 
         # 支援本機和雲端兩種方式
         if os.path.exists('credentials.json'):
-            creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
-        else:
-            creds_dict = json.loads(os.environ.get('GOOGLE_CREDENTIALS', '{}'))
-            creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    creds = Credentials.from_service_account_file('credentials.json', scopes=scope)
+else:
+    creds_json = st.secrets["GOOGLE_CREDENTIALS"]
+    creds_dict = json.loads(creds_json)
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
 
-        client = gspread.authorize(creds)
+client = gspread.authorize(creds)
 
-        # 讀取試算表
-        SHEET_ID = os.environ.get('SHEET_ID', '15AXNliucYP5-NTwleA4cSyoNhY-Fxyy1UBSCpxwCwlY')
+if os.path.exists('credentials.json'):
+    SHEET_ID = '15AXNliucYP5-NTwleA4cSyoNhY-Fxyy1UBSCpxwCwlY'
+else:
+    SHEET_ID = st.secrets["SHEET_ID"]
         sheet = client.open_by_key(SHEET_ID).worksheet('raw_news')
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
