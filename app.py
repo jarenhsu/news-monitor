@@ -202,6 +202,17 @@ header {visibility: hidden;}
     margin-top: 5px;
 }
 
+.time-selector {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin: 10px 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
 .ai-analysis {
     background: linear-gradient(135deg, rgba(138,43,226,0.1), rgba(0,212,255,0.05));
     border: 1px solid rgba(138,43,226,0.4);
@@ -237,6 +248,14 @@ header {visibility: hidden;}
     text-align: right;
     letter-spacing: 1px;
 }
+
+/* 時間選擇器樣式覆蓋 */
+div[data-testid="stSelectbox"] > div {
+    background: rgba(0,212,255,0.05) !important;
+    border: 1px solid rgba(0,212,255,0.3) !important;
+    border-radius: 6px !important;
+    color: #00d4ff !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -269,7 +288,6 @@ def group_similar_titles(df, threshold=0.3):
         for j, title_b in enumerate(titles):
             if j in used:
                 continue
-            # 共用4個以上中文字 OR 相似度超過門檻
             common_chars = set(title_a) & set(title_b)
             common_words = [c for c in common_chars if '\u4e00' <= c <= '\u9fff']
             if len(common_words) >= 4 or get_similarity(title_a, title_b) >= threshold:
@@ -277,25 +295,19 @@ def group_similar_titles(df, threshold=0.3):
                 used.add(j)
         groups.append(group)
 
-    # 建立對應關係
     result_rows = []
     for group in groups:
         group_titles = [titles[i] for i in group]
         group_sources = [sources[i] for i in group]
         group_urls = [urls[i] for i in group]
 
-        # 選最長標題作為代表
         rep_idx = max(range(len(group_titles)), key=lambda x: len(group_titles[x]))
         rep_title = group_titles[rep_idx]
         rep_url = group_urls[rep_idx]
 
-        # 收集所有媒體來源（去重）
         unique_sources = list(dict.fromkeys(group_sources))
-
-        # 熱度 = 媒體數量
         heat = len(unique_sources)
 
-        # 取原始 df 的其他欄位
         orig_row = df.iloc[group[rep_idx]].copy()
         orig_row['title'] = rep_title
         orig_row['url'] = rep_url
@@ -308,7 +320,7 @@ def group_similar_titles(df, threshold=0.3):
     return result_df
 
 # ============================================================
-# 讀取 Google Sheets 資料
+# 讀取 Google Sheets 資料（不含時間過濾，讓前端控制）
 # ============================================================
 @st.cache_data(ttl=3600)
 def load_data():
@@ -336,13 +348,7 @@ def load_data():
             return pd.DataFrame()
 
         df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
-        thirty_days_ago = datetime.now() - timedelta(days=30)
-        df = df[df['published_at'] >= thirty_days_ago]
-
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
-
-        # 用相似標題分群計算熱度
-        df = group_similar_titles(df, threshold=0.3)
 
         return df
 
@@ -357,19 +363,44 @@ st.markdown('<div class="glitch-title">📡 資策會新聞熱度觀測站</div>
 st.markdown('<div class="subtitle">// INSTITUTE FOR INFORMATION INDUSTRY · NEWS MONITOR SYSTEM //</div>', unsafe_allow_html=True)
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-with st.spinner('🔄 正在從資料庫讀取新聞...'):
-    df = load_data()
+# 時間範圍選擇器
+col_sel1, col_sel2, col_sel3 = st.columns([1, 2, 1])
+with col_sel2:
+    days_option = st.selectbox(
+        '📅 選擇分析區間',
+        options=[7, 14, 30],
+        index=2,
+        format_func=lambda x: f'過去 {x} 天'
+    )
 
-if df.empty:
+st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
+
+# 載入資料
+with st.spinner('🔄 正在從資料庫讀取新聞...'):
+    df_raw = load_data()
+
+if df_raw.empty:
     st.warning("⚠️ 目前無資料，請確認 Google Sheets 連線與資料是否正常。")
     st.stop()
 
+# 依選擇的天數過濾
+cutoff = datetime.now() - timedelta(days=days_option)
+df_filtered = df_raw[df_raw['published_at'] >= cutoff].copy()
+
+if df_filtered.empty:
+    st.warning(f"⚠️ 過去 {days_option} 天內無資料，請嘗試選擇更長的區間。")
+    st.stop()
+
+# 相似標題分群計算熱度
+df = group_similar_titles(df_filtered, threshold=0.3)
+
+# 統計數字
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.markdown(f'''
     <div class="stat-card">
         <div class="stat-number">{len(df)}</div>
-        <div class="stat-label">📰 本月新聞事件數</div>
+        <div class="stat-label">📰 新聞事件數</div>
     </div>''', unsafe_allow_html=True)
 
 with col2:
@@ -399,7 +430,7 @@ with col4:
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
 # TOP 5
-st.markdown('<div class="section-title">🏆 TOP 5 本月最熱新聞</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">🏆 TOP 5 過去 {days_option} 天最熱新聞</div>', unsafe_allow_html=True)
 
 top5 = df.head(5)
 max_heat_val = top5['heat'].max() if len(top5) > 0 else 1
@@ -439,7 +470,7 @@ for i, row in top5.iterrows():
     ''', unsafe_allow_html=True)
 
 # TOP 6-10
-st.markdown('<div class="section-title">📊 TOP 6-10 追蹤新聞</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">📊 TOP 6-10 追蹤新聞</div>', unsafe_allow_html=True)
 
 next5 = df.iloc[5:10]
 for i, row in next5.iterrows():
@@ -480,20 +511,20 @@ top_news = df['title'].head(3).tolist()
 top_media = df['media_list'].head(1).values[0] if len(df) > 0 else ''
 
 analysis_text = f"""
-▸ 系統分析期間：過去 30 天 · 新聞事件數：{len(df)} 則
+▸ 系統分析期間：過去 {days_option} 天 · 新聞事件數：{len(df)} 則
 
-▸ 本月最活躍關鍵字：{' · '.join(top_keywords) if top_keywords else 'N/A'}
+▸ 本期最活躍關鍵字：{' · '.join(top_keywords) if top_keywords else 'N/A'}
   → 顯示資策會在上述議題持續受到媒體關注
 
 ▸ 最高聲量事件媒體列表：{top_media}
 
-▸ 本月最熱事件 TOP 3：
+▸ 本期最熱事件 TOP 3：
   1. {top_news[0] if len(top_news) > 0 else 'N/A'}
   2. {top_news[1] if len(top_news) > 1 else 'N/A'}
   3. {top_news[2] if len(top_news) > 2 else 'N/A'}
 
 ▸ 綜合研判：
-  本月資策會相關新聞以「{top_keywords[0] if top_keywords else '數位轉型'}」議題聲量最高，
+  本期資策會相關新聞以「{top_keywords[0] if top_keywords else '數位轉型'}」議題聲量最高，
   建議持續關注後續媒體動態，強化對外溝通策略。
 """
 
@@ -504,4 +535,4 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-st.markdown(f'<div class="update-time">最後更新：{datetime.now().strftime("%Y-%m-%d %H:%M")} · 資料每小時自動更新</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="update-time">分析區間：過去 {days_option} 天 · 最後更新：{datetime.now().strftime("%Y-%m-%d %H:%M")} · 資料每小時自動更新</div>', unsafe_allow_html=True)
