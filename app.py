@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
@@ -26,148 +27,6 @@ st.markdown("""
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
-
-/* 英雄區塊 */
-.hero-section {
-    position: relative;
-    width: 100%;
-    height: 220px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    margin-bottom: 10px;
-}
-
-/* 旋轉光暈底圖 */
-.orb-container {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-}
-
-.orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(60px);
-    opacity: 0.5;
-}
-
-.orb-1 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, #00d4ff, transparent);
-    top: -80px;
-    left: 20%;
-    animation: orbit1 8s linear infinite;
-}
-
-.orb-2 {
-    width: 250px;
-    height: 250px;
-    background: radial-gradient(circle, #a855f7, transparent);
-    top: -60px;
-    right: 20%;
-    animation: orbit2 10s linear infinite;
-}
-
-.orb-3 {
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle, #ffd700, transparent);
-    bottom: -50px;
-    left: 45%;
-    animation: orbit3 12s linear infinite;
-}
-
-.orb-4 {
-    width: 180px;
-    height: 180px;
-    background: radial-gradient(circle, #00ff88, transparent);
-    top: 20px;
-    left: 35%;
-    animation: orbit4 9s linear infinite;
-    opacity: 0.3;
-}
-
-@keyframes orbit1 {
-    0%   { transform: translate(0px, 0px) scale(1); }
-    25%  { transform: translate(80px, 30px) scale(1.1); }
-    50%  { transform: translate(40px, 60px) scale(0.9); }
-    75%  { transform: translate(-40px, 20px) scale(1.05); }
-    100% { transform: translate(0px, 0px) scale(1); }
-}
-
-@keyframes orbit2 {
-    0%   { transform: translate(0px, 0px) scale(1); }
-    25%  { transform: translate(-60px, 40px) scale(0.95); }
-    50%  { transform: translate(-80px, -20px) scale(1.1); }
-    75%  { transform: translate(20px, -30px) scale(1); }
-    100% { transform: translate(0px, 0px) scale(1); }
-}
-
-@keyframes orbit3 {
-    0%   { transform: translate(0px, 0px) scale(1); }
-    33%  { transform: translate(60px, -40px) scale(1.15); }
-    66%  { transform: translate(-50px, -20px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
-}
-
-@keyframes orbit4 {
-    0%   { transform: translate(0px, 0px) scale(1); opacity: 0.3; }
-    50%  { transform: translate(100px, 50px) scale(1.2); opacity: 0.5; }
-    100% { transform: translate(0px, 0px) scale(1); opacity: 0.3; }
-}
-
-/* 標題文字 */
-.hero-title {
-    position: relative;
-    z-index: 10;
-    font-family: 'Orbitron', monospace;
-    font-size: 2.6em;
-    font-weight: 900;
-    text-align: center;
-    color: #ffffff;
-    text-shadow:
-        0 0 20px rgba(0, 212, 255, 0.8),
-        0 0 40px rgba(0, 212, 255, 0.4),
-        0 2px 4px rgba(0,0,0,0.8);
-    letter-spacing: 3px;
-    margin: 0;
-}
-
-.hero-subtitle {
-    position: relative;
-    z-index: 10;
-    font-family: 'Share Tech Mono', monospace;
-    text-align: center;
-    color: rgba(0, 255, 136, 0.9);
-    font-size: 0.85em;
-    letter-spacing: 3px;
-    margin-top: 12px;
-    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-}
-
-/* 掃描線效果 */
-.scan-line {
-    position: absolute;
-    width: 100%;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.6), transparent);
-    animation: scanMove 4s linear infinite;
-    z-index: 5;
-}
-
-@keyframes scanMove {
-    0%   { top: -10px; opacity: 0; }
-    10%  { opacity: 1; }
-    90%  { opacity: 1; }
-    100% { top: 230px; opacity: 0; }
-}
 
 .stat-card {
     background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(0,255,136,0.05));
@@ -476,27 +335,133 @@ def load_data():
         return pd.DataFrame()
 
 # ============================================================
+# 英雄區塊（Canvas 旋轉光暈）
+# ============================================================
+components.html("""
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: transparent; overflow: hidden; }
+
+  .hero {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hero-title {
+    position: relative;
+    z-index: 10;
+    font-family: 'Orbitron', monospace;
+    font-size: 2.2em;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow:
+      0 0 20px rgba(0,212,255,0.9),
+      0 0 40px rgba(0,212,255,0.5),
+      0 2px 8px rgba(0,0,0,0.9);
+    letter-spacing: 3px;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  .hero-sub {
+    position: relative;
+    z-index: 10;
+    font-family: 'Share Tech Mono', monospace;
+    color: rgba(0,255,136,0.95);
+    font-size: 0.75em;
+    letter-spacing: 3px;
+    margin-top: 14px;
+    text-shadow: 0 0 12px rgba(0,255,136,0.7);
+    text-align: center;
+    padding: 0 20px;
+  }
+</style>
+</head>
+<body>
+  <div class="hero">
+    <canvas id="c"></canvas>
+    <div class="hero-title">📡 資策會新聞熱度觀測站</div>
+    <div class="hero-sub">// INSTITUTE FOR INFORMATION INDUSTRY · NEWS MONITOR SYSTEM //</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // 定義旋轉光球
+    const orbs = [
+      { baseX: 0.25, baseY: 0.5, r: 160, color: '0,212,255',   speed: 1.2, angle: 0,   orbitX: 0.22, orbitY: 0.28 },
+      { baseX: 0.75, baseY: 0.5, r: 140, color: '168,85,247',  speed: 0.9, angle: 2.1, orbitX: 0.18, orbitY: 0.32 },
+      { baseX: 0.5,  baseY: 0.5, r: 120, color: '255,215,0',   speed: 1.5, angle: 4.2, orbitX: 0.28, orbitY: 0.22 },
+      { baseX: 0.5,  baseY: 0.3, r: 100, color: '0,255,136',   speed: 1.0, angle: 1.0, orbitX: 0.15, orbitY: 0.20 },
+    ];
+
+    let last = 0;
+
+    function draw(ts) {
+      const dt = (ts - last) / 1000;
+      last = ts;
+
+      const W = canvas.width;
+      const H = canvas.height;
+
+      ctx.clearRect(0, 0, W, H);
+
+      orbs.forEach(o => {
+        o.angle += o.speed * dt;
+
+        const cx = W * o.baseX + Math.cos(o.angle) * W * o.orbitX;
+        const cy = H * o.baseY + Math.sin(o.angle * 0.7) * H * o.orbitY;
+
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, o.r);
+        grad.addColorStop(0, `rgba(${o.color}, 0.55)`);
+        grad.addColorStop(0.5, `rgba(${o.color}, 0.2)`);
+        grad.addColorStop(1, `rgba(${o.color}, 0)`);
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, o.r, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>
+""", height=210)
+
+# ============================================================
 # 主畫面
 # ============================================================
-
-# 英雄區塊（光暈旋轉標題）
-st.markdown('''
-<div class="hero-section">
-    <div class="orb-container">
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        <div class="orb orb-3"></div>
-        <div class="orb orb-4"></div>
-    </div>
-    <div class="scan-line"></div>
-    <div class="hero-title">📡 資策會新聞熱度觀測站</div>
-    <div class="hero-subtitle">// INSTITUTE FOR INFORMATION INDUSTRY · NEWS MONITOR SYSTEM //</div>
-</div>
-''', unsafe_allow_html=True)
-
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-# 時間範圍選擇器
 col_sel1, col_sel2, col_sel3 = st.columns([1, 2, 1])
 with col_sel2:
     period_option = st.selectbox(
