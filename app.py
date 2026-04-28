@@ -248,11 +248,28 @@ BLOCKED_DOMAINS = [
     'jobsdb.com', 'cake.me', 'linkedin.com'
 ]
 
+# 重要關鍵實體清單（人名、機構、事件）
+KEY_ENTITIES = [
+    '高虹安', '奇美醫院', '職能護照', 'ITS世界大會',
+    '資策會', '數位轉型', 'FIND', '博論', '抄襲',
+    '半導體', '資安', '新南向', '元宇宙', 'AI'
+]
+
 # ============================================================
 # 相似標題分群函數
 # ============================================================
 def get_similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
+
+def share_key_entity(a, b):
+    """檢查兩個標題是否包含相同的關鍵實體"""
+    for entity in KEY_ENTITIES:
+        if len(entity) >= 2 and entity in a and entity in b:
+            # 排除「資策會」這種太通用的詞（每篇都有）
+            if entity == '資策會' or entity == 'AI':
+                continue
+            return True
+    return False
 
 def group_similar_titles(df, threshold=0.3):
     titles = df['title'].tolist()
@@ -269,11 +286,21 @@ def group_similar_titles(df, threshold=0.3):
         for j, title_b in enumerate(titles):
             if j in used:
                 continue
+
+            # 方法一：共同中文字 >= 3
             common_chars = set(title_a) & set(title_b)
             common_words = [c for c in common_chars if '\u4e00' <= c <= '\u9fff']
-            if len(common_words) >= 4 or get_similarity(title_a, title_b) >= threshold:
+
+            # 方法二：標題相似度
+            similarity = get_similarity(title_a, title_b)
+
+            # 方法三：包含相同關鍵實體
+            same_entity = share_key_entity(title_a, title_b)
+
+            if len(common_words) >= 3 or similarity >= threshold or same_entity:
                 group.append(j)
                 used.add(j)
+
         groups.append(group)
 
     result_rows = []
@@ -282,10 +309,12 @@ def group_similar_titles(df, threshold=0.3):
         group_sources = [sources[i] for i in group]
         group_urls = [urls[i] for i in group]
 
+        # 選最長標題作為代表
         rep_idx = max(range(len(group_titles)), key=lambda x: len(group_titles[x]))
         rep_title = group_titles[rep_idx]
         rep_url = group_urls[rep_idx]
 
+        # 收集所有媒體來源（去重）
         unique_sources = list(dict.fromkeys(group_sources))
         heat = len(unique_sources)
 
