@@ -280,8 +280,6 @@ def group_similar_titles(df, threshold=0.3):
     titles = df['title'].tolist()
     sources = df['source'].tolist()
     urls = df['url'].tolist()
-
-    # media_list 欄位可能已存在（第二次分群時）
     media_lists = df['media_list'].tolist() if 'media_list' in df.columns else [s for s in sources]
 
     groups = []
@@ -312,7 +310,6 @@ def group_similar_titles(df, threshold=0.3):
         group_titles = [titles[i] for i in group]
         group_urls = [urls[i] for i in group]
 
-        # 合併所有媒體來源
         all_sources = []
         for i in group:
             media = media_lists[i]
@@ -367,7 +364,12 @@ def load_data():
             return pd.DataFrame()
 
         df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
+
+        # 過濾雜訊網域
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
+
+        # 只保留標題含「資策會」的新聞
+        df = df[df['title'].str.contains('資策會', na=False)]
 
         # 標題去重
         df = df.drop_duplicates(subset=['title'], keep='first')
