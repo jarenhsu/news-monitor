@@ -299,7 +299,7 @@ def group_similar_titles(df, threshold=0.3):
             similarity = get_similarity(title_a, title_b)
             same_combo = share_key_combination(title_a, title_b)
 
-            if len(common_words) >= 4 or similarity >= threshold or same_combo:
+            if len(common_words) >= 6 or similarity >= threshold or same_combo:
                 group.append(j)
                 used.add(j)
 
@@ -364,14 +364,8 @@ def load_data():
             return pd.DataFrame()
 
         df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
-
-        # 過濾雜訊網域
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
-
-        # 只保留標題含「資策會」的新聞
         df = df[df['title'].str.contains('資策會', na=False)]
-
-        # 標題去重
         df = df.drop_duplicates(subset=['title'], keep='first')
 
         return df
@@ -427,16 +421,9 @@ if df_filtered.empty:
 df = group_similar_titles(df_filtered, threshold=0.3)
 df = group_similar_titles(df, threshold=0.3)
 
-# 統計數字
-col1, col2, col3, col4 = st.columns(4)
+# 統計數字（只保留媒體來源數和最高媒體聲量）
+col1, col2 = st.columns(2)
 with col1:
-    st.markdown(f'''
-    <div class="stat-card">
-        <div class="stat-number">{len(df)}</div>
-        <div class="stat-label">📰 新聞事件數</div>
-    </div>''', unsafe_allow_html=True)
-
-with col2:
     total_media = df['media_list'].str.split(' · ').explode().nunique() if 'media_list' in df.columns else 0
     st.markdown(f'''
     <div class="stat-card">
@@ -444,15 +431,7 @@ with col2:
         <div class="stat-label">📡 媒體來源數</div>
     </div>''', unsafe_allow_html=True)
 
-with col3:
-    top_keyword = df["keyword"].value_counts().index[0] if "keyword" in df.columns and len(df) > 0 else "N/A"
-    st.markdown(f'''
-    <div class="stat-card">
-        <div class="stat-number" style="font-size:1.5em">{top_keyword}</div>
-        <div class="stat-label">🔥 最熱關鍵字</div>
-    </div>''', unsafe_allow_html=True)
-
-with col4:
+with col2:
     max_heat = int(df["heat"].max()) if "heat" in df.columns and len(df) > 0 else 0
     st.markdown(f'''
     <div class="stat-card">
