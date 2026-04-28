@@ -248,11 +248,19 @@ BLOCKED_DOMAINS = [
     'jobsdb.com', 'cake.me', 'linkedin.com'
 ]
 
-# 關鍵實體清單（長度>=3，避免過度匹配）
-KEY_ENTITIES = [
-    '高虹安', '奇美醫院', '職能護照', 'ITS世界大會',
-    '博論抄襲', '數位轉型', '智慧醫療', '資安院',
-    '半導體', '新南向', '元宇宙', '虛擬實境'
+# 關鍵詞組合清單
+KEY_COMBINATIONS = [
+    ['奇美', '資策會'],
+    ['奇美', '醫療AI'],
+    ['奇美', '職能護照'],
+    ['奇美', 'AI人才'],
+    ['高虹安', '論文'],
+    ['高虹安', '抄襲'],
+    ['高虹安', '資策會'],
+    ['高虹安', '期刊'],
+    ['ITS', '資策會'],
+    ['數位轉型', '資策會'],
+    ['職能護照', '醫療'],
 ]
 
 # ============================================================
@@ -261,10 +269,9 @@ KEY_ENTITIES = [
 def get_similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
-def share_key_entity(a, b):
-    """檢查兩個標題是否包含相同的關鍵實體（長度>=3才算）"""
-    for entity in KEY_ENTITIES:
-        if len(entity) >= 3 and entity in a and entity in b:
+def share_key_combination(a, b):
+    for combo in KEY_COMBINATIONS:
+        if all(word in a for word in combo) and all(word in b for word in combo):
             return True
     return False
 
@@ -284,17 +291,12 @@ def group_similar_titles(df, threshold=0.3):
             if j in used:
                 continue
 
-            # 方法一：共同中文字 >= 4
             common_chars = set(title_a) & set(title_b)
             common_words = [c for c in common_chars if '\u4e00' <= c <= '\u9fff']
-
-            # 方法二：標題相似度 >= 0.3
             similarity = get_similarity(title_a, title_b)
+            same_combo = share_key_combination(title_a, title_b)
 
-            # 方法三：包含相同關鍵實體
-            same_entity = share_key_entity(title_a, title_b)
-
-            if len(common_words) >= 4 or similarity >= threshold or same_entity:
+            if len(common_words) >= 4 or similarity >= threshold or same_combo:
                 group.append(j)
                 used.add(j)
 
@@ -306,12 +308,10 @@ def group_similar_titles(df, threshold=0.3):
         group_sources = [sources[i] for i in group]
         group_urls = [urls[i] for i in group]
 
-        # 選最長標題作為代表
         rep_idx = max(range(len(group_titles)), key=lambda x: len(group_titles[x]))
         rep_title = group_titles[rep_idx]
         rep_url = group_urls[rep_idx]
 
-        # 收集所有媒體來源（去重）
         unique_sources = list(dict.fromkeys(group_sources))
         heat = len(unique_sources)
 
@@ -518,19 +518,14 @@ for i, row in next5.iterrows():
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-# AI 分析
-st.markdown('<div class="section-title">🤖 AI 輿情分析</div>', unsafe_allow_html=True)
+# 智慧輿情分析
+st.markdown('<div class="section-title">🤖 智慧輿情分析</div>', unsafe_allow_html=True)
 
-top_keywords = df['keyword'].value_counts().head(3).index.tolist() if 'keyword' in df.columns else []
 top_news = df['title'].head(3).tolist()
 top_media = df['media_list'].head(1).values[0] if len(df) > 0 else ''
+top_sources = df['media_list'].str.split(' · ').explode().value_counts().head(3).index.tolist() if 'media_list' in df.columns else []
 
 analysis_text = f"""
-▸ 系統分析期間：{period_label} · 新聞事件數：{len(df)} 則
-
-▸ 本期最活躍關鍵字：{' · '.join(top_keywords) if top_keywords else 'N/A'}
-  → 顯示資策會在上述議題持續受到媒體關注
-
 ▸ 最高聲量事件媒體列表：{top_media}
 
 ▸ 本期最熱事件 TOP 3：
@@ -538,14 +533,17 @@ analysis_text = f"""
   2. {top_news[1] if len(top_news) > 1 else 'N/A'}
   3. {top_news[2] if len(top_news) > 2 else 'N/A'}
 
+▸ 主要報導媒體：{' · '.join(top_sources) if top_sources else 'N/A'}
+
 ▸ 綜合研判：
-  本期資策會相關新聞以「{top_keywords[0] if top_keywords else '數位轉型'}」議題聲量最高，
+  {period_label}內資策會共獲得 {len(df)} 則媒體事件關注，
+  最高單一事件聲量達 {max_heat} 家媒體報導，
   建議持續關注後續媒體動態，強化對外溝通策略。
 """
 
 st.markdown(f'''
 <div class="ai-analysis">
-    <div class="ai-title">⚡ SYSTEM ANALYSIS · 智能輿情摘要</div>
+    <div class="ai-title">⚡ SYSTEM ANALYSIS · 智慧輿情摘要</div>
     <pre style="font-family: Share Tech Mono, monospace; white-space: pre-wrap; margin:0;">{analysis_text}</pre>
 </div>
 ''', unsafe_allow_html=True)
