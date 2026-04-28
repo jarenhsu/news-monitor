@@ -7,9 +7,6 @@ from difflib import SequenceMatcher
 import os
 import json
 
-# ============================================================
-# 設定頁面
-# ============================================================
 st.set_page_config(
     page_title="資策會新聞熱度觀測站",
     page_icon="📡",
@@ -17,9 +14,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ============================================================
-# Cyberpunk 樣式設定
-# ============================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
@@ -33,32 +27,146 @@ st.markdown("""
 footer {visibility: hidden;}
 header {visibility: hidden;}
 
-.glitch-title {
+/* 英雄區塊 */
+.hero-section {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+/* 旋轉光暈底圖 */
+.orb-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.5;
+}
+
+.orb-1 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, #00d4ff, transparent);
+    top: -80px;
+    left: 20%;
+    animation: orbit1 8s linear infinite;
+}
+
+.orb-2 {
+    width: 250px;
+    height: 250px;
+    background: radial-gradient(circle, #a855f7, transparent);
+    top: -60px;
+    right: 20%;
+    animation: orbit2 10s linear infinite;
+}
+
+.orb-3 {
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, #ffd700, transparent);
+    bottom: -50px;
+    left: 45%;
+    animation: orbit3 12s linear infinite;
+}
+
+.orb-4 {
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, #00ff88, transparent);
+    top: 20px;
+    left: 35%;
+    animation: orbit4 9s linear infinite;
+    opacity: 0.3;
+}
+
+@keyframes orbit1 {
+    0%   { transform: translate(0px, 0px) scale(1); }
+    25%  { transform: translate(80px, 30px) scale(1.1); }
+    50%  { transform: translate(40px, 60px) scale(0.9); }
+    75%  { transform: translate(-40px, 20px) scale(1.05); }
+    100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes orbit2 {
+    0%   { transform: translate(0px, 0px) scale(1); }
+    25%  { transform: translate(-60px, 40px) scale(0.95); }
+    50%  { transform: translate(-80px, -20px) scale(1.1); }
+    75%  { transform: translate(20px, -30px) scale(1); }
+    100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes orbit3 {
+    0%   { transform: translate(0px, 0px) scale(1); }
+    33%  { transform: translate(60px, -40px) scale(1.15); }
+    66%  { transform: translate(-50px, -20px) scale(0.9); }
+    100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes orbit4 {
+    0%   { transform: translate(0px, 0px) scale(1); opacity: 0.3; }
+    50%  { transform: translate(100px, 50px) scale(1.2); opacity: 0.5; }
+    100% { transform: translate(0px, 0px) scale(1); opacity: 0.3; }
+}
+
+/* 標題文字 */
+.hero-title {
+    position: relative;
+    z-index: 10;
     font-family: 'Orbitron', monospace;
-    font-size: 2.8em;
+    font-size: 2.6em;
     font-weight: 900;
     text-align: center;
-    color: #00d4ff;
-    text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 0 0 40px #00d4ff, 2px 2px 0px #ff006e, -2px -2px 0px #00ff88;
-    letter-spacing: 4px;
-    padding: 20px 0;
-    animation: glitch 3s infinite;
+    color: #ffffff;
+    text-shadow:
+        0 0 20px rgba(0, 212, 255, 0.8),
+        0 0 40px rgba(0, 212, 255, 0.4),
+        0 2px 4px rgba(0,0,0,0.8);
+    letter-spacing: 3px;
+    margin: 0;
 }
 
-@keyframes glitch {
-    0%, 90%, 100% { text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff, 2px 2px 0px #ff006e; }
-    92% { text-shadow: -2px 0 #ff006e, 2px 0 #00ff88, 0 0 20px #00d4ff; transform: translate(2px, 0); }
-    94% { text-shadow: 2px 0 #ff006e, -2px 0 #00ff88, 0 0 20px #00d4ff; transform: translate(-2px, 0); }
-    96% { text-shadow: 0 0 10px #00d4ff, 0 0 20px #00d4ff; transform: translate(0); }
-}
-
-.subtitle {
+.hero-subtitle {
+    position: relative;
+    z-index: 10;
     font-family: 'Share Tech Mono', monospace;
     text-align: center;
-    color: #00ff88;
-    font-size: 0.9em;
+    color: rgba(0, 255, 136, 0.9);
+    font-size: 0.85em;
     letter-spacing: 3px;
-    margin-bottom: 30px;
+    margin-top: 12px;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+/* 掃描線效果 */
+.scan-line {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,212,255,0.6), transparent);
+    animation: scanMove 4s linear infinite;
+    z-index: 5;
+}
+
+@keyframes scanMove {
+    0%   { top: -10px; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { top: 230px; opacity: 0; }
 }
 
 .stat-card {
@@ -248,7 +356,6 @@ BLOCKED_DOMAINS = [
     'jobsdb.com', 'cake.me', 'linkedin.com'
 ]
 
-# 關鍵詞組合清單
 KEY_COMBINATIONS = [
     ['奇美', '資策會'],
     ['奇美', '醫療AI'],
@@ -264,9 +371,6 @@ KEY_COMBINATIONS = [
     ['職能護照', '醫療'],
 ]
 
-# ============================================================
-# 相似標題分群函數
-# ============================================================
 def get_similarity(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
@@ -336,9 +440,6 @@ def group_similar_titles(df, threshold=0.3):
     result_df = result_df.sort_values('heat', ascending=False).reset_index(drop=True)
     return result_df
 
-# ============================================================
-# 讀取 Google Sheets 資料
-# ============================================================
 def load_data():
     try:
         scope = [
@@ -377,8 +478,22 @@ def load_data():
 # ============================================================
 # 主畫面
 # ============================================================
-st.markdown('<div class="glitch-title">📡 資策會新聞熱度觀測站</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">// INSTITUTE FOR INFORMATION INDUSTRY · NEWS MONITOR SYSTEM //</div>', unsafe_allow_html=True)
+
+# 英雄區塊（光暈旋轉標題）
+st.markdown('''
+<div class="hero-section">
+    <div class="orb-container">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+    </div>
+    <div class="scan-line"></div>
+    <div class="hero-title">📡 資策會新聞熱度觀測站</div>
+    <div class="hero-subtitle">// INSTITUTE FOR INFORMATION INDUSTRY · NEWS MONITOR SYSTEM //</div>
+</div>
+''', unsafe_allow_html=True)
+
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
 # 時間範圍選擇器
@@ -402,7 +517,6 @@ else:
 
 st.markdown('<hr class="cyber-divider">', unsafe_allow_html=True)
 
-# 載入資料
 with st.spinner('🔄 正在從資料庫讀取新聞...'):
     df_raw = load_data()
 
@@ -410,18 +524,16 @@ if df_raw.empty:
     st.warning("⚠️ 目前無資料，請確認 Google Sheets 連線與資料是否正常。")
     st.stop()
 
-# 依選擇區間過濾
 df_filtered = df_raw[df_raw['published_at'] >= cutoff].copy()
 
 if df_filtered.empty:
     st.warning(f"⚠️ {period_label} 內無資料，請嘗試選擇更長的區間。")
     st.stop()
 
-# 相似標題分群（跑兩次確保完整合併）
 df = group_similar_titles(df_filtered, threshold=0.3)
 df = group_similar_titles(df, threshold=0.3)
 
-# 統計數字（只保留媒體來源數和最高媒體聲量）
+# 統計數字
 col1, col2 = st.columns(2)
 with col1:
     total_media = df['media_list'].str.split(' · ').explode().nunique() if 'media_list' in df.columns else 0
