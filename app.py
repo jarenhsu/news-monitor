@@ -323,7 +323,7 @@ def load_data():
         if df.empty:
             return pd.DataFrame()
 
-        df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce')
+        df['published_at'] = pd.to_datetime(df['published_at'], errors='coerce', utc=True).dt.tz_localize(None)
         df = df[~df['source'].isin(BLOCKED_DOMAINS)]
         df = df[df['title'].str.contains('資策會', na=False)]
         df = df.drop_duplicates(subset=['title'], keep='first')
